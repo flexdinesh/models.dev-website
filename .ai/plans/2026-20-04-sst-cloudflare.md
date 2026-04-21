@@ -34,7 +34,7 @@ Use SST v3 with Cloudflare, following `../models.dev`'s `sst.config.ts` shape: b
 5. Confirm the deployed workers.dev URL loads and app network requests succeed
 
 ## Decisions made by user
-- Use repo name in SST app config
+- Use sanitized repo name in SST app config: `models-dev-website`
 - Keep direct `https://models.dev/...` fetches
 - Use `workers.dev` only
 - Add GitHub Action deploy
@@ -47,6 +47,7 @@ Use SST v3 with Cloudflare, following `../models.dev`'s `sst.config.ts` shape: b
 - If `models.dev` changes CORS or availability, this site can break.
 - Same-origin proxy would be more robust, but intentionally skipped.
 - Worker remains useful for Cloudflare hosting and SPA fallback.
+- SST app names cannot contain dots, so the repo name needed sanitizing.
 
 ## Remaining open questions
 None.

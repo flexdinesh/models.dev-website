@@ -3,7 +3,7 @@
 export default $config({
   app() {
     return {
-      name: "models.dev-website",
+      name: "models-dev-website",
       home: "cloudflare",
     };
   },
