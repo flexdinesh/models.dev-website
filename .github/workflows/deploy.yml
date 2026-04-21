@@ -35,7 +35,14 @@ jobs:
           test -n "$CLOUDFLARE_DEFAULT_ACCOUNT_ID"
 
       - name: Show SST diff
-        run: bun run diff --stage=production --print-logs
+        run: |
+          set +e
+          bun run diff --stage=production --print-logs 2>&1 | tee /tmp/sst-diff.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ] && ! grep -q "stage not found" /tmp/sst-diff.log; then
+            exit "$status"
+          fi
 
       - name: Deploy with SST
         run: bun run deploy --stage=production --print-logs

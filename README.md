@@ -50,6 +50,8 @@ See planned infra changes:
 bun run diff --stage=production
 ```
 
+If this is the first deploy for the stage, `sst diff` can fail with `stage not found`. Run deploy once, then diff will work on later changes.
+
 Deploy:
 
 ```bash
