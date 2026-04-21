@@ -28,7 +28,7 @@ function updateQueryParams(updates: Record<string, string | null>) {
 
 function parseSearchTerms(value: string) {
   return value
-    .split(",")
+    .split(/[\s,]+/)
     .map((part) => part.trim().toLowerCase())
     .filter((part) => part !== "");
 }
@@ -206,7 +206,7 @@ export function App() {
     const terms = parseSearchTerms(search);
     const filtered = terms.length === 0
       ? siteData.rows
-      : siteData.rows.filter((row) => terms.some((term) => row.searchText.includes(term)));
+      : siteData.rows.filter((row) => terms.every((term) => row.searchText.includes(term)));
 
     return [...filtered].sort((a, b) => compareRows(a, b, sortKey, sortDirection));
   }, [search, siteData, sortDirection, sortKey]);
