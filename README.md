@@ -7,6 +7,7 @@ A faster website for browsing `models.dev` data. Built with React + vite and dep
 - Bun
 - Cloudflare account
 - Cloudflare API token with Workers access
+- For custom domain deploys: Cloudflare DNS edit access for the target zone
 - Optional: `CLOUDFLARE_DEFAULT_ACCOUNT_ID`
 
 ## Install
@@ -59,6 +60,8 @@ bun run deploy --stage=production
 ```
 
 SST builds the Vite app, uploads `dist/`, and deploys a Cloudflare Worker that serves assets and handles SPA fallback.
+
+Production also binds the custom domain `models-dev.deebox.dev`.
 
 ## GitHub Actions deploy
 

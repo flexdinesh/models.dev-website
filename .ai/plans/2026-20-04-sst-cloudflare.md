@@ -52,5 +52,9 @@ Use SST v3 with Cloudflare, following `../models.dev`'s `sst.config.ts` shape: b
 ## Remaining open questions
 None.
 
+## Execution updates
+- Production now uses the custom domain `models-dev.deebox.dev`.
+- This requires the Cloudflare token to have DNS edit access for the `deebox.dev` zone.
+
 ## Execution guidance
 If implementation deviates from this plan, update this file to reflect the latest approved plan and surface the deviation to the user.
