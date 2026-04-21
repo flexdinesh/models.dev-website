@@ -2,12 +2,19 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { SiteRow } from "./types";
 
+interface TableColumn {
+  key: string;
+  label: string;
+  sublabel?: string;
+  type: "text" | "boolean" | "modalities" | "number";
+}
+
 const HEADER_HEIGHT = 56;
 const TABLE_HEADER_HEIGHT = 50;
 const ROW_HEIGHT = 49;
 const OVERSCAN = 12;
 
-export const TABLE_COLUMNS = [
+export const TABLE_COLUMNS: readonly TableColumn[] = [
   { key: "provider", label: "Provider", type: "text" },
   { key: "model", label: "Model", type: "text" },
   { key: "family", label: "Family", type: "text" },
@@ -334,7 +341,7 @@ export function Table({
     if (element === null) return;
 
     function handleScroll() {
-      setScrollTop(element.scrollTop);
+      setScrollTop(scrollRef.current?.scrollTop ?? 0);
     }
 
     element.addEventListener("scroll", handleScroll, { passive: true });

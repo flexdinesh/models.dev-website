@@ -1,0 +1,70 @@
+# models.dev-website
+
+Static React app for browsing `models.dev` data. Deployed to Cloudflare with SST.
+
+## Prereqs
+
+- Bun
+- Cloudflare account
+- Cloudflare API token with Workers access
+- Optional: `CLOUDFLARE_DEFAULT_ACCOUNT_ID`
+
+## Install
+
+```bash
+bun install
+```
+
+## Local dev
+
+Start Vite:
+
+```bash
+bun run dev
+```
+
+Build production assets:
+
+```bash
+bun run build
+```
+
+Preview production build:
+
+```bash
+bun run preview
+```
+
+## Deploy
+
+Set Cloudflare creds in your shell:
+
+```bash
+export CLOUDFLARE_API_TOKEN="..."
+export CLOUDFLARE_DEFAULT_ACCOUNT_ID="..."
+```
+
+See planned infra changes:
+
+```bash
+bun run diff --stage=production
+```
+
+Deploy:
+
+```bash
+bun run deploy --stage=production
+```
+
+SST builds the Vite app, uploads `dist/`, and deploys a Cloudflare Worker that serves assets and handles SPA fallback.
+
+## GitHub Actions deploy
+
+Auto-deploy runs on pushes to `main`.
+
+Repo secrets required:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_DEFAULT_ACCOUNT_ID`
+
+Manual trigger is also available in GitHub Actions.
