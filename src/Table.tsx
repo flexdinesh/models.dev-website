@@ -9,7 +9,6 @@ interface TableColumn {
   type: "text" | "boolean" | "modalities" | "number";
 }
 
-const HEADER_HEIGHT = 56;
 const TABLE_HEADER_HEIGHT = 50;
 const ROW_HEIGHT = 49;
 const OVERSCAN = 12;
@@ -321,19 +320,29 @@ export function Table({
   sortDirection: SortDirection;
   onSort: (key: SortKey) => void;
 }) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [viewportHeight, setViewportHeight] = useState(600);
   const [scrollTop, setScrollTop] = useState(0);
 
   useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (shell === null) return;
+
     function updateHeight() {
-      const next = Math.max(window.innerHeight - HEADER_HEIGHT - TABLE_HEADER_HEIGHT - 24, 320);
-      setViewportHeight(next);
+      setViewportHeight(Math.max(shell.clientHeight, 320));
     }
 
     updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(shell);
     window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
   }, []);
 
   useEffect(() => {
@@ -357,7 +366,7 @@ export function Table({
   const bottomPad = Math.max(totalHeight - topPad - visibleRows.length * ROW_HEIGHT, 0);
 
   return (
-    <div className="table-shell">
+    <div ref={shellRef} className="table-shell">
       <div ref={scrollRef} className="table-scroll" style={{ height: viewportHeight }}>
         <table>
           <thead>
