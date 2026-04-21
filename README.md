@@ -1,6 +1,6 @@
 # models.dev-website
 
-Static React app for browsing `models.dev` data. Deployed to Cloudflare with SST.
+A faster website for browsing `models.dev` data. Built with React + vite and deployed to Cloudflare workers with SST.
 
 ## Prereqs
 
