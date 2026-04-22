@@ -287,7 +287,7 @@ export function App() {
         </div>
         <div className="footer">
           <a href="https://github.com/sst/models.dev" target="_blank" rel="noopener noreferrer">Edit on GitHub</a>
-          <a href="https://sst.dev" target="_blank" rel="noopener noreferrer">Created by SST</a>
+          <a href="https://sst.dev" target="_blank" rel="noopener noreferrer">A fork of models.dev created by SST</a>
         </div>
       </dialog>
     </Fragment>
