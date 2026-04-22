@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { SiteRow } from "./types";
 
@@ -7,38 +7,48 @@ interface TableColumn {
   label: string;
   sublabel?: string;
   type: "text" | "boolean" | "modalities" | "number";
+  minWidth: number;
+  maxWidth: number;
 }
 
-const TABLE_HEADER_HEIGHT = 50;
 const ROW_HEIGHT = 49;
 const OVERSCAN = 12;
+const BODY_FONT = '400 14px "Rubik", sans-serif';
+const MONO_FONT = '400 13px "IBM Plex Mono", monospace';
+const HEADER_FONT = '400 12px "Rubik", sans-serif';
+const SUBLABEL_FONT = '400 10px "Rubik", sans-serif';
+const CELL_HORIZONTAL_PADDING = 24;
+const PROVIDER_CELL_EXTRA = 28;
+const MODEL_ID_CELL_EXTRA = 42;
+const MODALITY_ICON_WIDTH = 20;
+const MODALITY_ICON_GAP = 4;
 
 export const TABLE_COLUMNS: readonly TableColumn[] = [
-  { key: "provider", label: "Provider", type: "text" },
-  { key: "model", label: "Model", type: "text" },
-  { key: "family", label: "Family", type: "text" },
-  { key: "provider-id", label: "Provider ID", type: "text" },
-  { key: "model-id", label: "Model ID", type: "text" },
-  { key: "tool-call", label: "Tool Call", type: "boolean" },
-  { key: "reasoning", label: "Reasoning", type: "boolean" },
-  { key: "input", label: "Input", type: "modalities" },
-  { key: "output", label: "Output", type: "modalities" },
-  { key: "input-cost", label: "Input Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "output-cost", label: "Output Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "reasoning-cost", label: "Reasoning Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "cache-read-cost", label: "Cache Read Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "cache-write-cost", label: "Cache Write Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "audio-input-cost", label: "Audio Input Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "audio-output-cost", label: "Audio Output Cost", sublabel: "per 1M tokens", type: "number" },
-  { key: "context-limit", label: "Context Limit", type: "number" },
-  { key: "input-limit", label: "Input Limit", type: "number" },
-  { key: "output-limit", label: "Output Limit", type: "number" },
-  { key: "structured-output", label: "Structured Output", type: "boolean" },
-  { key: "temperature", label: "Temperature", type: "boolean" },
-  { key: "weights", label: "Weights", type: "text" },
-  { key: "knowledge", label: "Knowledge", type: "text" },
-  { key: "release-date", label: "Release Date", type: "text" },
-  { key: "last-updated", label: "Last Updated", type: "text" },
+  { key: "provider", label: "Provider", type: "text", minWidth: 140, maxWidth: 320 },
+  { key: "model", label: "Model", type: "text", minWidth: 180, maxWidth: 420 },
+  { key: "family", label: "Family", type: "text", minWidth: 120, maxWidth: 220 },
+  { key: "provider-id", label: "Provider ID", type: "text", minWidth: 120, maxWidth: 220 },
+  { key: "model-id", label: "Model ID", type: "text", minWidth: 200, maxWidth: 460 },
+  { key: "tool-call", label: "Tool Call", type: "boolean", minWidth: 104, maxWidth: 160 },
+  { key: "reasoning", label: "Reasoning", type: "boolean", minWidth: 104, maxWidth: 160 },
+  { key: "input", label: "Input", type: "modalities", minWidth: 92, maxWidth: 160 },
+  { key: "output", label: "Output", type: "modalities", minWidth: 92, maxWidth: 160 },
+  { key: "input-cost", label: "Input Cost", sublabel: "per 1M tokens", type: "number", minWidth: 140, maxWidth: 180 },
+  { key: "output-cost", label: "Output Cost", sublabel: "per 1M tokens", type: "number", minWidth: 140, maxWidth: 180 },
+  { key: "reasoning-cost", label: "Reasoning Cost", sublabel: "per 1M tokens", type: "number", minWidth: 144, maxWidth: 188 },
+  { key: "cache-read-cost", label: "Cache Read Cost", sublabel: "per 1M tokens", type: "number", minWidth: 148, maxWidth: 192 },
+  { key: "cache-write-cost", label: "Cache Write Cost", sublabel: "per 1M tokens", type: "number", minWidth: 148, maxWidth: 192 },
+  { key: "audio-input-cost", label: "Audio Input Cost", sublabel: "per 1M tokens", type: "number", minWidth: 148, maxWidth: 192 },
+  { key: "audio-output-cost", label: "Audio Output Cost", sublabel: "per 1M tokens", type: "number", minWidth: 148, maxWidth: 192 },
+  { key: "context-limit", label: "Context Limit", type: "number", minWidth: 120, maxWidth: 170 },
+  { key: "input-limit", label: "Input Limit", type: "number", minWidth: 120, maxWidth: 170 },
+  { key: "output-limit", label: "Output Limit", type: "number", minWidth: 120, maxWidth: 170 },
+  { key: "structured-output", label: "Structured Output", type: "boolean", minWidth: 132, maxWidth: 180 },
+  { key: "temperature", label: "Temperature", type: "boolean", minWidth: 116, maxWidth: 156 },
+  { key: "weights", label: "Weights", type: "text", minWidth: 104, maxWidth: 140 },
+  { key: "knowledge", label: "Knowledge", type: "text", minWidth: 100, maxWidth: 132 },
+  { key: "release-date", label: "Release Date", type: "text", minWidth: 120, maxWidth: 152 },
+  { key: "last-updated", label: "Last Updated", type: "text", minWidth: 120, maxWidth: 152 },
 ] as const;
 
 export type SortKey = (typeof TABLE_COLUMNS)[number]["key"];
@@ -55,6 +65,139 @@ function formatBoolean(value: boolean) {
 function formatStructuredOutput(value: boolean | null) {
   if (value === null) return "-";
   return value ? "Yes" : "No";
+}
+
+function clampWidth(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function createTextMeasurer() {
+  const context = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+
+  return (value: string, font: string) => {
+    if (context === null) return Math.ceil(value.length * (font.includes("IBM Plex Mono") ? 7.8 : 8.4));
+    context.font = font;
+    return Math.ceil(context.measureText(value).width);
+  };
+}
+
+function createColumnWidthRecord(value: number): Record<SortKey, number> {
+  return {
+    provider: value,
+    model: value,
+    family: value,
+    "provider-id": value,
+    "model-id": value,
+    "tool-call": value,
+    reasoning: value,
+    input: value,
+    output: value,
+    "input-cost": value,
+    "output-cost": value,
+    "reasoning-cost": value,
+    "cache-read-cost": value,
+    "cache-write-cost": value,
+    "audio-input-cost": value,
+    "audio-output-cost": value,
+    "context-limit": value,
+    "input-limit": value,
+    "output-limit": value,
+    "structured-output": value,
+    temperature: value,
+    weights: value,
+    knowledge: value,
+    "release-date": value,
+    "last-updated": value,
+  };
+}
+
+function getHeaderWidth(column: TableColumn, measureText: ReturnType<typeof createTextMeasurer>) {
+  const labelWidth = measureText(column.label, HEADER_FONT);
+  const sublabelWidth = column.sublabel === undefined ? 0 : measureText(column.sublabel, SUBLABEL_FONT);
+  return Math.ceil(Math.max(labelWidth, sublabelWidth) + CELL_HORIZONTAL_PADDING + 20);
+}
+
+function getModalitiesWidth(modalities: string[]) {
+  if (modalities.length === 0) return CELL_HORIZONTAL_PADDING;
+  return CELL_HORIZONTAL_PADDING + modalities.length * MODALITY_ICON_WIDTH + Math.max(modalities.length - 1, 0) * MODALITY_ICON_GAP;
+}
+
+function getCellWidth(column: TableColumn, row: SiteRow, measureText: ReturnType<typeof createTextMeasurer>) {
+  switch (column.key) {
+    case "provider":
+      return measureText(row.providerName, BODY_FONT) + CELL_HORIZONTAL_PADDING + PROVIDER_CELL_EXTRA;
+    case "model":
+      return measureText(row.modelName, BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "family":
+      return measureText(row.family ?? "-", MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "provider-id":
+      return measureText(row.providerId, MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "model-id":
+      return measureText(row.modelId, MONO_FONT) + CELL_HORIZONTAL_PADDING + MODEL_ID_CELL_EXTRA;
+    case "tool-call":
+      return measureText(formatBoolean(row.toolCall), BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "reasoning":
+      return measureText(formatBoolean(row.reasoning), BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "input":
+      return getModalitiesWidth(row.input);
+    case "output":
+      return getModalitiesWidth(row.output);
+    case "input-cost":
+      return measureText(formatCost(row.cost?.input ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "output-cost":
+      return measureText(formatCost(row.cost?.output ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "reasoning-cost":
+      return measureText(formatCost(row.cost?.reasoning ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "cache-read-cost":
+      return measureText(formatCost(row.cost?.cacheRead ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "cache-write-cost":
+      return measureText(formatCost(row.cost?.cacheWrite ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "audio-input-cost":
+      return measureText(formatCost(row.cost?.inputAudio ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "audio-output-cost":
+      return measureText(formatCost(row.cost?.outputAudio ?? null), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "context-limit":
+      return measureText(row.limit.context.toLocaleString(), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "input-limit":
+      return measureText(row.limit.input?.toLocaleString() ?? "-", MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "output-limit":
+      return measureText(row.limit.output.toLocaleString(), MONO_FONT) + CELL_HORIZONTAL_PADDING;
+    case "structured-output":
+      return measureText(formatStructuredOutput(row.structuredOutput), BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "temperature":
+      return measureText(formatBoolean(row.temperature), BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "weights":
+      return measureText(row.openWeights ? "Open" : "Closed", BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "knowledge":
+      return measureText(row.knowledge?.substring(0, 7) ?? "-", BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "release-date":
+      return measureText(row.releaseDate, BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    case "last-updated":
+      return measureText(row.lastUpdated, BODY_FONT) + CELL_HORIZONTAL_PADDING;
+    default:
+      return column.minWidth;
+  }
+}
+
+function createInitialColumnWidths(rows: SiteRow[]) {
+  const measureText = createTextMeasurer();
+  const widths = createColumnWidthRecord(0);
+
+  for (const column of TABLE_COLUMNS) {
+    let nextWidth = getHeaderWidth(column, measureText);
+
+    for (const row of rows) {
+      nextWidth = Math.max(nextWidth, getCellWidth(column, row, measureText));
+    }
+
+    widths[column.key] = clampWidth(Math.ceil(nextWidth), column.minWidth, column.maxWidth);
+  }
+
+  return widths;
+}
+
+function getColumn(key: SortKey) {
+  return TABLE_COLUMNS.find((column) => column.key === key);
 }
 
 export function compareRows(a: SiteRow, b: SiteRow, key: SortKey, direction: SortDirection) {
@@ -212,15 +355,19 @@ function HeaderCell({
   active,
   direction,
   onClick,
+  onResizeStart,
+  resizing,
 }: {
   label: string;
   sublabel?: string;
   active: boolean;
   direction: SortDirection;
   onClick: () => void;
+  onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  resizing: boolean;
 }) {
   return (
-    <th className="sortable" aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
+    <th className={`sortable${resizing ? " resizing" : ""}`} aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
       <button type="button" className="sort-button" onClick={onClick}>
         {sublabel ? (
           <div className="header-container">
@@ -237,6 +384,7 @@ function HeaderCell({
           </Fragment>
         )}
       </button>
+      <div className="column-resize-handle" role="presentation" onPointerDown={onResizeStart}></div>
     </th>
   );
 }
@@ -311,19 +459,24 @@ function TableRow({ row }: { row: SiteRow }) {
 
 export function Table({
   rows,
+  allRows,
   sortKey,
   sortDirection,
   onSort,
 }: {
   rows: SiteRow[];
+  allRows: SiteRow[];
   sortKey: SortKey;
   sortDirection: SortDirection;
   onSort: (key: SortKey) => void;
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<{ key: SortKey; startX: number; startWidth: number } | null>(null);
   const [viewportHeight, setViewportHeight] = useState(600);
   const [scrollTop, setScrollTop] = useState(0);
+  const [columnWidths, setColumnWidths] = useState(() => createInitialColumnWidths(allRows));
+  const [resizingColumn, setResizingColumn] = useState<SortKey | null>(null);
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
@@ -357,6 +510,52 @@ export function Table({
     return () => element.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (resizingColumn === null) return;
+
+    function stopResize() {
+      dragStateRef.current = null;
+      setResizingColumn(null);
+      document.body.classList.remove("column-resizing");
+    }
+
+    function onPointerMove(event: PointerEvent) {
+      const dragState = dragStateRef.current;
+      if (dragState === null) return;
+
+      const column = getColumn(dragState.key);
+      if (column === undefined) return;
+
+      const nextWidth = Math.max(column.minWidth, Math.round(dragState.startWidth + event.clientX - dragState.startX));
+
+      setColumnWidths((current) => {
+        if (current[dragState.key] === nextWidth) return current;
+        return { ...current, [dragState.key]: nextWidth };
+      });
+    }
+
+    document.body.classList.add("column-resizing");
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", stopResize);
+    window.addEventListener("pointercancel", stopResize);
+
+    return () => {
+      document.body.classList.remove("column-resizing");
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", stopResize);
+      window.removeEventListener("pointercancel", stopResize);
+    };
+  }, [resizingColumn]);
+
+  function startResize(key: SortKey, event: ReactPointerEvent<HTMLDivElement>) {
+    if (!event.isPrimary) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    event.preventDefault();
+    dragStateRef.current = { key, startX: event.clientX, startWidth: columnWidths[key] };
+    setResizingColumn(key);
+  }
+
   const totalHeight = rows.length * ROW_HEIGHT;
   const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT);
   const startIndex = Math.max(Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN, 0);
@@ -364,11 +563,15 @@ export function Table({
   const visibleRows = rows.slice(startIndex, endIndex);
   const topPad = startIndex * ROW_HEIGHT;
   const bottomPad = Math.max(totalHeight - topPad - visibleRows.length * ROW_HEIGHT, 0);
+  const tableWidth = TABLE_COLUMNS.reduce((width, column) => width + columnWidths[column.key], 0);
 
   return (
     <div ref={shellRef} className="table-shell">
       <div ref={scrollRef} className="table-scroll" style={{ height: viewportHeight }}>
-        <table>
+        <table style={{ width: tableWidth, minWidth: "100%" }}>
+          <colgroup>
+            {TABLE_COLUMNS.map((column) => <col key={column.key} style={{ width: columnWidths[column.key] }} />)}
+          </colgroup>
           <thead>
             <tr>
               {TABLE_COLUMNS.map((column) => (
@@ -379,6 +582,8 @@ export function Table({
                   active={sortKey === column.key}
                   direction={sortDirection}
                   onClick={() => onSort(column.key)}
+                  onResizeStart={(event) => startResize(column.key, event)}
+                  resizing={resizingColumn === column.key}
                 />
               ))}
             </tr>

@@ -255,7 +255,7 @@ export function App() {
       </header>
 
       <main>
-        <Table rows={visibleRows} sortKey={sortKey} sortDirection={sortDirection} onSort={onSort} />
+        <Table rows={visibleRows} allRows={siteData.rows} sortKey={sortKey} sortDirection={sortDirection} onSort={onSort} />
       </main>
 
       <dialog ref={dialogRef} onCancel={() => setHelpOpen(false)} onClick={(event) => {
