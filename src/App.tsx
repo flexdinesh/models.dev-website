@@ -26,11 +26,82 @@ function updateQueryParams(updates: Record<string, string | null>) {
   window.history.pushState({}, "", url);
 }
 
-function parseSearchTerms(value: string) {
-  return value
-    .split(/[\s,]+/)
-    .map((part) => part.trim().toLowerCase())
-    .filter((part) => part !== "");
+type SearchField = "provider" | "model" | "family" | "id";
+
+type SearchTerm =
+  | { kind: "free"; value: string }
+  | { kind: "field"; field: SearchField; value: string };
+
+const FIELD_KEYS: Record<string, SearchField> = {
+  provider: "provider",
+  model: "model",
+  family: "family",
+  id: "id",
+};
+
+function parseSearchTerms(value: string): SearchTerm[] {
+  const terms: SearchTerm[] = [];
+  const tokens: string[] = [];
+
+  // Tokenize with quote-awareness so `field:"value with spaces"` stays one token.
+  let buf = "";
+  let inQuote = false;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === '"') {
+      inQuote = !inQuote;
+      buf += ch;
+      continue;
+    }
+    if (!inQuote && (ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === ",")) {
+      if (buf !== "") {
+        tokens.push(buf);
+        buf = "";
+      }
+      continue;
+    }
+    buf += ch;
+  }
+  if (buf !== "") tokens.push(buf);
+
+  for (const token of tokens) {
+    const colon = token.indexOf(":");
+    if (colon > 0) {
+      const key = token.slice(0, colon).toLowerCase();
+      const field = FIELD_KEYS[key];
+      if (field !== undefined) {
+        let raw = token.slice(colon + 1);
+        // Strip surrounding quotes if present (may be unterminated; tolerate it).
+        if (raw.startsWith('"')) raw = raw.slice(1);
+        if (raw.endsWith('"')) raw = raw.slice(0, -1);
+        const v = raw.trim().toLowerCase();
+        if (v !== "") terms.push({ kind: "field", field, value: v });
+      }
+      // Any `key:value` with a non-empty key is treated as a field token;
+      // unknown fields are ignored per spec.
+      continue;
+    }
+    const v = token.trim().toLowerCase();
+    if (v !== "") terms.push({ kind: "free", value: v });
+  }
+
+  return terms;
+}
+
+// Field filters use substring (case-insensitive) match against row fields.
+// Lowercasing at match time for simplicity; precompute on SiteRow if this
+// shows up in profiles (row count is small today, ~hundreds).
+function matchField(row: SiteRow, field: SearchField, value: string): boolean {
+  switch (field) {
+    case "provider":
+      return row.providerId.toLowerCase().includes(value) || row.providerName.toLowerCase().includes(value);
+    case "model":
+      return row.modelId.toLowerCase().includes(value) || row.modelName.toLowerCase().includes(value);
+    case "family":
+      return row.family !== null && row.family.toLowerCase().includes(value);
+    case "id":
+      return row.providerId.toLowerCase().includes(value) || row.modelId.toLowerCase().includes(value);
+  }
 }
 
 function compactText(parts: Array<string | null | undefined>) {
@@ -204,9 +275,33 @@ export function App() {
     if (siteData === null) return [];
 
     const terms = parseSearchTerms(search);
+
+    // Group field terms by field name so repeated fields OR together
+    // (e.g. `provider:openai provider:anthropic` matches either). Free terms
+    // and different fields still AND.
+    const freeTerms: string[] = [];
+    const fieldGroups = new Map<SearchField, string[]>();
+    for (const term of terms) {
+      if (term.kind === "free") {
+        freeTerms.push(term.value);
+      } else {
+        const existing = fieldGroups.get(term.field);
+        if (existing === undefined) fieldGroups.set(term.field, [term.value]);
+        else existing.push(term.value);
+      }
+    }
+
     const filtered = terms.length === 0
       ? siteData.rows
-      : siteData.rows.filter((row) => terms.every((term) => row.searchText.includes(term)));
+      : siteData.rows.filter((row) => {
+          for (const v of freeTerms) {
+            if (!row.searchText.includes(v)) return false;
+          }
+          for (const [field, values] of fieldGroups) {
+            if (!values.some((v) => matchField(row, field, v))) return false;
+          }
+          return true;
+        });
 
     return [...filtered].sort((a, b) => compareRows(a, b, sortKey, sortDirection));
   }, [search, siteData, sortDirection, sortKey]);
@@ -273,6 +368,12 @@ export function App() {
         <div className="body">
           <p><a href="/">Models.dev</a> is a comprehensive open-source database of AI model specifications, pricing, and features.</p>
           <p>There&apos;s no single database with information about all the available AI models. We started Models.dev as a community-contributed project to address this. We also use it internally in <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">opencode</a>.</p>
+          <h2>Search</h2>
+          <p>Type any text to filter models by name, provider, family, modality, and more. Separate terms with spaces; all terms must match.</p>
+          <p>Use <code>field:value</code> for exact filters on a specific field. Supported fields: <code>provider</code>, <code>model</code>, <code>family</code>, <code>id</code>. Quote values with spaces.</p>
+          <div className="code-block"><code>provider:github-copilot</code></div>
+          <div className="code-block"><code>model:&quot;gpt 4&quot; family:claude</code></div>
+          <p>Unknown fields are ignored. Field filters are case-insensitive substring matches. Repeat the same field to match any of the values (e.g. <code>provider:openai provider:anthropic</code>).</p>
           <h2>API</h2>
           <p>You can access this data through an API.</p>
           <div className="code-block"><code>curl <a href="/api.json">https://models.dev/api.json</a></code></div>
